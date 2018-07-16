@@ -1,17 +1,54 @@
 #include<SFML/Network.hpp>
 #include<SFML/Graphics.hpp>
+#include <SFML/System/Thread.hpp>
+#include <TGUI/TGUI.hpp>
 #include<iostream>
 #include <fstream>
 #include<string>
 #include<vector>
-#include<conio.h>
-
+#include<ctime>
 using namespace sf;
 using namespace std;
 
-void main()
+RenderWindow wind(VideoMode(450, 300, 32), "TR Queue Client");
+tgui::Gui gui{ wind };
+TcpSocket socket;
+bool connright = false;
+double d1 = 0;
+void networkingHandler()
 {
-
+	while (true)
+	{
+		if (connright)
+		{
+			Packet packet;
+			socket.receive(packet);
+			string id;
+			string red;
+			string blue;
+			if (packet >> id >> red >> blue)
+			{
+				tgui::Label::Ptr r = tgui::Label::create("Red:");
+				tgui::Label::Ptr rppl = tgui::Label::create(red);
+				tgui::Label::Ptr b = tgui::Label::create("Blue:");
+				tgui::Label::Ptr bppl = tgui::Label::create(blue);
+				r->setPosition(100, 175);
+				rppl->setPosition(140, 175);
+				b->setPosition(100, 200);
+				bppl->setPosition(140, 200);
+				gui.add(r);
+				gui.add(b);
+				gui.add(rppl);
+				gui.add(bppl);
+				gui.get<tgui::Label>("isqueued")->setText("Game Found!");
+			}
+		}
+	}
+}
+void connect()
+{
+	std::string name = gui.get<tgui::EditBox>("edit")->getText();
+	std::string role = gui.get<tgui::ComboBox>("combo")->getSelectedItem();
 	IpAddress ip;
 	ifstream options;
 	options.open("options.cfg");
@@ -25,146 +62,117 @@ void main()
 		if (line == "")
 			ip = IpAddress::getLocalAddress();
 	}
-	else
-		cout << "Problem opening file!" << endl;
-	TcpSocket socket;
 	bool done = false;
-	cout << ip.toString() << endl;
-	string id;
-	string role;
 	int roleid;
 	string status = "connected";
 	string text = "";
 
-	cout << "Enter summoner name: ";
-	cin >> id;
-	cout << endl;
 	bool b = false;
-	while (!b)
+	if (role == "top" || role == "Top")
 	{
-		cout << "Enter role: ";
-		cin >> role;
-		cout << endl;
-
-		if (role == "top")
-		{
-			roleid = 0;
-			b = true;
-		}
-		else if (role == "jungle")
-		{
-			roleid = 1;
-			b = true;
-		}
-		else if (role == "mid")
-		{
-			roleid = 2;
-			b = true;
-		}
-		else if (role == "bot")
-		{
-			roleid = 3;
-			b = true;
-		}
-		else if (role == "support")
-		{
-			roleid = 4;
-			b = true;
-		}
-		else
-		{
-			std::cout << "Please input a valid role (top, jungle, mid, bot, support)." << std::endl;
-		}
+		roleid = 0;
+		b = true;
 	}
-	socket.connect(ip, 2000);
-
-	Packet packet;
-
-	packet << id << roleid << status;
-	socket.send(packet);
-	socket.setBlocking(false);
-	while (true)
+	else if (role == "jungle" || role == "Jungle")
 	{
+		roleid = 1;
+		b = true;
+	}
+	else if (role == "mid" || role == "Mid")
+	{
+		roleid = 2;
+		b = true;
+	}
+	else if (role == "bot" || role == "Bot")
+	{
+		roleid = 3;
+		b = true;
+	}
+	else if (role == "support" || role == "Support")
+	{
+		roleid = 4;
+		b = true;
+	}
+	if (b)
+	{
+		socket.connect(ip, 2000);
 		Packet packet;
-		socket.receive(packet);
-		string id;
-		string text;
 
-		if (packet >> id >> text)
-		{
-			cout << text << endl;
-			cout << "Please close your queue client!! " << endl;
-		}
+		packet << name << roleid << status;
+		socket.send(packet);
+		socket.setBlocking(false);
+		connright = true;
+		gui.get<tgui::Label>("isqueued")->setVisible(true);
+		gui.draw();
+	}
+	else
+	{
+		tgui::Label::Ptr p = gui.get<tgui::Label>("isqueued");
+		p->setText("Failed to queue up!");
+		p->setVisible(true);
+		gui.draw();
 
 	}
+}
 
+void WinMain()
+{
+	sf::Thread t(&networkingHandler);
+	t.launch();
+	tgui::Label::Ptr lsumm = tgui::Label::create("Summoner Name");
+	tgui::Label::Ptr lrole = tgui::Label::create("Role");
+	tgui::Label::Ptr failed = tgui::Label::create("Queued up!");
+	tgui::Button::Ptr bqueue = tgui::Button::create("Queue Up");
+	tgui::EditBox::Ptr ebsumm = tgui::EditBox::create();
+	tgui::ComboBox::Ptr cbrole = tgui::ComboBox::create();
+	lrole->setPosition(100, 75);
+	cbrole->setPosition(150, 75);
+	cbrole->addItem("Top", "top");
+	cbrole->addItem("Jungle", "jungle");
+	cbrole->addItem("Mid", "mid");
+	cbrole->addItem("Bot", "bot");
+	cbrole->addItem("Support", "support");
+	lsumm->setPosition(25, 25);
+	ebsumm->setPosition(150, 25);
+
+	bqueue->setPosition(175, 150);
+	failed->setPosition(175, 125);
+	failed->setVisible(false);
+	bqueue->connect("pressed", &connect);
+	gui.add(bqueue);
+	gui.add(ebsumm, "edit");
+	gui.add(cbrole, "combo");
+	gui.add(lsumm);
+	gui.add(lrole);
+	gui.add(failed, "isqueued");
 	
-	/*RenderWindow window(VideoMode(800, 600, 32), id);
-	vector<Text> chat;
-
-	Font font;
-	font.loadFromFile("Data/font.ttf");
-
-	while (window.isOpen())
+	wind.setActive(true);
+	while (wind.isOpen())
 	{
 		Event event;
-		while (window.pollEvent(event))
+		while (wind.pollEvent(event))
 		{
+			gui.handleEvent(event);
 			switch (event.type)
 			{
 			case Event::Closed:
-				window.close();
+				wind.close();
+				exit(0);
 				break;
 			case Event::KeyPressed:
 				if (event.key.code == Keyboard::Escape)
 				{
-					text.clear();
 				}
 				else if (event.key.code == Keyboard::Return)
 				{
-					Packet packet;
-					packet << id + ":" + text;
-					socket.send(packet);
-					Text displaytext(text, font, 20);
-					displaytext.setFillColor(Color::Green);
-					chat.push_back(displaytext);
-					text = "";
 				}
-				break;
-			case Event::TextEntered:
-				if (event.text.unicode == '\b' && text.size() >0)
-				{
-					text.erase(text.size() - 1, 1);
-				}
-				else
-					text += event.text.unicode;
 				break;
 			}
 		}
+		wind.clear(sf::Color::White);
+		gui.draw();
+		wind.display();
+	}
 
-		Packet packet;
-		socket.receive(packet);
-		string temptext;
-		if (packet >> temptext)
-		{
-			Text displaytext(temptext, font, 20);
-			displaytext.setFillColor(Color::Blue);
-			chat.push_back(displaytext);
-		}
-		int i = 0;
-		for (i; i<chat.size(); i++)
-		{
-			chat[i].setPosition(0, i * 20);
-			window.draw(chat[i]);
-		}
-
-		Text drawtext(text, font, 20);
-		drawtext.setFillColor(Color::Red);
-		drawtext.setPosition(0, i * 20);
-		window.draw(drawtext);
-
-		window.display();
-		window.clear();
-	}*/
 
 }

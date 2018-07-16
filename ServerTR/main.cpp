@@ -1,10 +1,9 @@
 #include <iostream>
 #include <SFML\Network.hpp>
+#include <SFML\System\Thread.hpp>
 
 using namespace std;
 using namespace sf;
-
-
 
 struct User
 {
@@ -12,28 +11,27 @@ struct User
 	TcpSocket* sock;
 	string user;
 };
-int main()
+
+int t = 0;
+time_t start = clock();
+
+vector<string> mids;
+vector<string> tops;
+vector<string> bots;
+vector<string> jungles;
+vector<string> supports;
+vector<User> clients;
+
+void timing(time_t start)
 {
-	cout << "Server Running" << endl;
-	TcpListener listener;
-	SocketSelector selector;
-	bool done = false;
-	vector<User>clients;
-
-	vector<string> mids;
-	vector<string> tops;
-	vector<string> bots;
-	vector<string> jungles;
-	vector<string> supports;
-
-	listener.getLocalPort();
-	listener.listen(2000);
-	selector.add(listener);
-
 	while (true)
 	{
-		if (tops.size() > 1 && jungles.size() > 1 && mids.size() > 1 && bots.size() > 1 && supports.size() > 1)
+		t = difftime(clock(), start);
+
+		if (tops.size() > 1 && jungles.size() > 1 && mids.size() > 1 && bots.size() > 1 && supports.size() > 1 && t > 15000)
 		{
+			t = 0;
+			start = clock();
 			std::random_shuffle(tops.begin(), tops.end());
 			std::random_shuffle(jungles.begin(), jungles.end());
 			std::random_shuffle(mids.begin(), mids.end());
@@ -52,7 +50,8 @@ int main()
 			red.push_back(supports.at(0));
 			blue.push_back(supports.at(1));
 
-			string s = "Create a game with: \n" + red[0] + ", " + red[1] + ", " + red[2] + ", " + red[3] + ", " + red[4] + " on the red team \n" + blue[0] + ", " + blue[1] + ", " + blue[2] + ", " + blue[3] + ", " + blue[4] + " on the blue team.";
+			string s = red[0] + ", " + red[1] + ", " + red[2] + ", " + red[3] + ", " + red[4];
+			string s2 = blue[0] + ", " + blue[1] + ", " + blue[2] + ", " + blue[3] + ", " + blue[4];
 
 
 			for (int i = 0; i < 5; i++)
@@ -70,8 +69,8 @@ int main()
 					}
 				}
 				Packet p;
-				p << "game" << s;
-				cout << "telling " << r.user << " and " << b.user << endl;
+				p << "game" << s << s2;
+				std::cout << "telling " << r.user << " and " << b.user << std::endl;
 				r.sock->send(p);
 				b.sock->send(p);
 				for (int j = 0; j < clients.size(); j++)
@@ -89,8 +88,31 @@ int main()
 			mids.erase(mids.begin(), mids.begin() + 1);
 			bots.erase(bots.begin(), bots.begin() + 1);
 			supports.erase(supports.begin(), supports.begin() + 1);
-			cout << clients.size() << endl;
+			std::cout << clients.size() << std::endl;
 		}
+		else if (t > 15000)
+		{
+			std::cout << "not enough people!" << std::endl;
+			t = 0;
+			start = clock();
+		}
+	}
+}
+int main()
+{
+	std::cout << "Server Running" << std::endl;
+	TcpListener listener;
+	SocketSelector selector;
+	bool done = false;
+	sf::Thread thread(&timing, start);
+	thread.launch();
+	
+	listener.getLocalPort();
+	listener.listen(2000);
+	selector.add(listener);
+
+	while (true)
+	{
 		if (selector.wait())
 		{
 
@@ -105,7 +127,7 @@ int main()
 				string status;
 				if (socket->receive(packet) == Socket::Done)
 					packet >> id >> role >> status;
-				cout << id << " has " << status << " with role " << role << endl;
+				std::cout << id << " has " << status << " with role " << role << std::endl;
 				User u;
 				u.sock = socket;
 				u.user = id;
@@ -161,7 +183,7 @@ int main()
 			if (clients[l].sock->getRemoteAddress() == IpAddress::None)
 			{
 				clients.erase(clients.begin() + l);
-				cout << clients[l].user << " has disconnected!" << endl;
+				std::cout << clients[l].user << " has disconnected!" << std::endl;
 			}
 		}
 	}
