@@ -1,6 +1,7 @@
 #include<SFML/Network.hpp>
 #include<SFML/Graphics.hpp>
 #include<iostream>
+#include <fstream>
 #include<string>
 #include<vector>
 #include<conio.h>
@@ -10,12 +11,25 @@ using namespace std;
 
 void main()
 {
-	IpAddress ip = IpAddress::getLocalAddress();
-	cout << ip << endl;
 
+	IpAddress ip;
+	ifstream options;
+	options.open("options.cfg");
+	if (options.is_open())
+	{
+		string line = "";
+		while (getline(options, line))
+		{
+			ip = IpAddress(line);
+		}
+		if (line == "")
+			ip = IpAddress::getLocalAddress();
+	}
+	else
+		cout << "Problem opening file!" << endl;
 	TcpSocket socket;
 	bool done = false;
-
+	cout << ip.toString() << endl;
 	string id;
 	string role;
 	int roleid;
